@@ -83,6 +83,8 @@ export interface ExportTestOptions {
   mode: Mode;
   shapeId: FrameShapeId;
   background: Background;
+  /** 入り込む前に写真として見せる1コマの時刻（秒） */
+  thumbTime: number;
   maxSeconds: number;
   /** 1コマずつ CPU でフィルターをかける（重さの確認用） */
   cpuFilter: boolean;
@@ -110,6 +112,65 @@ function easeInOut(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+/** 検証用のフレームの編集内容（固定） */
+export async function makeTestDoc(shapeId: FrameShapeId): Promise<PhotoDoc> {
+  const doc: PhotoDoc = createDoc();
+  doc.frame = { shapeId, styleId: 'cream' };
+  doc.effects = { ...doc.effects, grain: 0.35, vignette: 0.35 };
+  doc.dateStamp = { ...doc.dateStamp, enabled: true };
+  doc.layers = [createTextLayer(doc, '動画テスト', { fontId: 'yomogi' })];
+  await ensureFontLoaded(getFont('yomogi'), '動画テスト');
+  return doc;
+}
+
+/**
+ * 動画からコマ（サムネ）を取り出す道具。フィルムの窓と同じ縦横比に切り抜いて返す。
+ */
+export class FramePicker {
+  private input: Input;
+  private sink: Promise<CanvasSink>;
+  readonly duration: Promise<number>;
+
+  constructor(file: Blob, shapeId: FrameShapeId, width: number) {
+    const win = FRAME_SHAPES[shapeId].window;
+    this.input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+    const height = Math.round((width * win.h) / win.w);
+    this.sink = this.input.getPrimaryVideoTrack().then((v) => {
+      if (!v) throw new Error('動画のトラックが見つかりません');
+      return new CanvasSink(v, { width, height, fit: 'cover' });
+    });
+    this.duration = this.input.computeDuration();
+  }
+
+  /** 等間隔に n コマ取り出す（コマ割り表示用）。1コマ取り出すたびに onFrame が呼ばれる */
+  async strip(n: number, onFrame: (i: number, time: number, canvas: HTMLCanvasElement) => void) {
+    const sink = await this.sink;
+    const d = await this.duration;
+    const times = Array.from({ length: n }, (_, i) => Math.min(d - 0.05, ((i + 0.5) / n) * d));
+    let i = 0;
+    for await (const wc of sink.canvasesAtTimestamps(times)) {
+      if (wc) onFrame(i, times[i], copyCanvas(wc.canvas as HTMLCanvasElement));
+      i++;
+    }
+  }
+
+  async frameAt(time: number): Promise<HTMLCanvasElement | null> {
+    const sink = await this.sink;
+    const wc = await sink.getCanvas(time);
+    return wc ? copyCanvas(wc.canvas as HTMLCanvasElement) : null;
+  }
+
+  dispose() {
+    this.input.dispose();
+  }
+}
+
+function copyCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
+  const c = createCanvas(src.width, src.height);
+  get2d(c).drawImage(src, 0, 0);
+  return c;
+}
+
 export class CancelledError extends Error {
   constructor() {
     super('キャンセルしました');
@@ -123,12 +184,7 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
   const win = shape.window;
 
   // フレームの編集内容（テスト用の固定値）
-  const doc: PhotoDoc = createDoc();
-  doc.frame = { shapeId: opts.shapeId, styleId: 'cream' };
-  doc.effects = { ...doc.effects, grain: 0.35, vignette: 0.35 };
-  doc.dateStamp = { ...doc.dateStamp, enabled: true };
-  doc.layers = [createTextLayer(doc, '動画テスト', { fontId: 'yomogi' })];
-  await ensureFontLoaded(getFont('yomogi'), '動画テスト');
+  const doc = await makeTestDoc(opts.shapeId);
 
   // 画面の中のフレームの置き方（フレーム全体が収まる大きさ）
   // （フィルムの形そのままのときは、余白なしで画面いっぱい）
@@ -257,7 +313,7 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
       opts.onProgress({ done: 0, total: totalFrames, stage: 'イントロ' });
       const size = winPx(zoomPx);
       const stillSink = new CanvasSink(vTrack, { width: size.w, height: size.h, fit: 'cover' });
-      const still = await stillSink.getCanvas(Math.min(0.5, mainDuration / 2));
+      const still = await stillSink.getCanvas(Math.min(opts.thumbTime, Math.max(0, srcDuration - 0.05)));
       if (!still) throw new Error('1コマ目を取り出せませんでした');
       const stillCanvas = still.canvas as HTMLCanvasElement;
       if (opts.cpuFilter) filterCanvasInPlace(stillCanvas, 'film', 1);

@@ -7,6 +7,7 @@ import { Icon } from '../ui/components/Icon';
 import { useToast } from '../ui/components/Toast';
 import { PreviewScreen, type ExportedMedia } from '../ui/screens/PreviewScreen';
 import { SnsPreview } from './SnsPreview';
+import { ThumbPicker } from './ThumbPicker';
 import {
   CancelledError,
   probeVideo,
@@ -74,6 +75,7 @@ export function VideoLab() {
   const [background, setBackground] = useState<Background>('blur');
   const [cpuFilter, setCpuFilter] = useState(false);
   const [short, setShort] = useState(false);
+  const [thumbTime, setThumbTime] = useState(0.5);
   const [sns, setSns] = useState<(ExportTestResult & { label: string }) | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; stage: string; startedAt: number } | null>(null);
   const [results, setResults] = useState<(ExportTestResult & { label: string; id: number })[]>([]);
@@ -92,6 +94,7 @@ export function VideoLab() {
       setFile(f);
       setInfo(null);
       setResults([]);
+      setThumbTime(0.5);
       setError(null);
       try {
         setInfo(await probeVideo(f.blob));
@@ -124,6 +127,7 @@ export function VideoLab() {
         mode,
         shapeId,
         background,
+        thumbTime,
         cpuFilter,
         fps: 30,
         maxSeconds: short ? 5 : MAX_VIDEO_SECONDS,
@@ -239,6 +243,12 @@ export function VideoLab() {
               B：写真から入り込む
             </button>
           </div>
+          {mode === 'B' && file && (
+            <>
+              <p className="section-label">サムネ（入り込む前に、写真としてフィルムに入る1コマ）</p>
+              <ThumbPicker file={file.blob} shapeId={shapeId} value={thumbTime} onChange={setThumbTime} />
+            </>
+          )}
           <p className="section-label">動画の形</p>
           <div className="chips">
             {(['film', '9:16', '1:1', '4:5'] as Aspect[])
