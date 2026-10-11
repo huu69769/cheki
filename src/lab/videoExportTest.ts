@@ -107,6 +107,8 @@ export interface ExportTestResult {
 const INTRO_STILL = 0.6;
 const INTRO_ZOOM = 1.2;
 const INTRO_TOTAL = INTRO_STILL + INTRO_ZOOM;
+/** 入り込まない方（モードA）で、再生前にサムネを止めて見せる長さ（秒） */
+const STILL_A = 1.0;
 
 function easeInOut(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -121,54 +123,6 @@ export async function makeTestDoc(shapeId: FrameShapeId): Promise<PhotoDoc> {
   doc.layers = [createTextLayer(doc, '動画テスト', { fontId: 'yomogi' })];
   await ensureFontLoaded(getFont('yomogi'), '動画テスト');
   return doc;
-}
-
-/**
- * 動画からコマ（サムネ）を取り出す道具。フィルムの窓と同じ縦横比に切り抜いて返す。
- */
-export class FramePicker {
-  private input: Input;
-  private sink: Promise<CanvasSink>;
-  readonly duration: Promise<number>;
-
-  constructor(file: Blob, shapeId: FrameShapeId, width: number) {
-    const win = FRAME_SHAPES[shapeId].window;
-    this.input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
-    const height = Math.round((width * win.h) / win.w);
-    this.sink = this.input.getPrimaryVideoTrack().then((v) => {
-      if (!v) throw new Error('動画のトラックが見つかりません');
-      return new CanvasSink(v, { width, height, fit: 'cover' });
-    });
-    this.duration = this.input.computeDuration();
-  }
-
-  /** 等間隔に n コマ取り出す（コマ割り表示用）。1コマ取り出すたびに onFrame が呼ばれる */
-  async strip(n: number, onFrame: (i: number, time: number, canvas: HTMLCanvasElement) => void) {
-    const sink = await this.sink;
-    const d = await this.duration;
-    const times = Array.from({ length: n }, (_, i) => Math.min(d - 0.05, ((i + 0.5) / n) * d));
-    let i = 0;
-    for await (const wc of sink.canvasesAtTimestamps(times)) {
-      if (wc) onFrame(i, times[i], copyCanvas(wc.canvas as HTMLCanvasElement));
-      i++;
-    }
-  }
-
-  async frameAt(time: number): Promise<HTMLCanvasElement | null> {
-    const sink = await this.sink;
-    const wc = await sink.getCanvas(time);
-    return wc ? copyCanvas(wc.canvas as HTMLCanvasElement) : null;
-  }
-
-  dispose() {
-    this.input.dispose();
-  }
-}
-
-function copyCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
-  const c = createCanvas(src.width, src.height);
-  get2d(c).drawImage(src, 0, 0);
-  return c;
 }
 
 export class CancelledError extends Error {
@@ -203,7 +157,7 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
     const aTrack = await input.getPrimaryAudioTrack();
     const srcDuration = await input.computeDuration();
     const mainDuration = Math.min(srcDuration, opts.maxSeconds);
-    const offset = opts.mode === 'B' ? INTRO_TOTAL : 0;
+    const offset = opts.mode === 'B' ? INTRO_TOTAL : STILL_A;
     const total = mainDuration + offset;
 
     const canvas = createCanvas(W, H);
@@ -308,19 +262,27 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
       renderDocument(ctx, doc, { image: img, width: iw, height: ih }, { pxPerMm, origin, cacheFrame });
     };
 
-    // ---- モードB：止まった1コマ → フレームの中へ入り込む演出 ----
-    if (opts.mode === 'B') {
-      opts.onProgress({ done: 0, total: totalFrames, stage: 'イントロ' });
-      const size = winPx(zoomPx);
+    // ---- 再生前：サムネ（選んだ1コマ）を見せる ----
+    // モードA：フレームの中でサムネを止めて見せる / モードB：サムネのフレームの中へ入り込む
+    {
+      opts.onProgress({ done: 0, total: totalFrames, stage: 'サムネ' });
+      const size = winPx(opts.mode === 'B' ? zoomPx : fitPx);
       const stillSink = new CanvasSink(vTrack, { width: size.w, height: size.h, fit: 'cover' });
       const still = await stillSink.getCanvas(Math.min(opts.thumbTime, Math.max(0, srcDuration - 0.05)));
       if (!still) throw new Error('1コマ目を取り出せませんでした');
       const stillCanvas = still.canvas as HTMLCanvasElement;
       if (opts.cpuFilter) filterCanvasInPlace(stillCanvas, 'film', 1);
-      const introFrames = Math.round(INTRO_TOTAL * opts.fps);
+      const introFrames = Math.round(offset * opts.fps);
       for (let i = 0; i < introFrames; i++) {
         check();
         const t = i / opts.fps;
+        if (opts.mode === 'A') {
+          drawFramed(stillCanvas, stillCanvas.width, stillCanvas.height, fitPx, fitOrigin, true);
+          await videoSource.add(t, frameDur);
+          frames++;
+          opts.onProgress({ done: frames, total: totalFrames, stage: 'サムネ' });
+          continue;
+        }
         const z = t < INTRO_STILL ? 0 : easeInOut((t - INTRO_STILL) / INTRO_ZOOM);
         // 拡大率は対数で補間すると、等速で近づいていくように見える
         const k = fitPx * Math.pow(zoomPx / fitPx, z);
@@ -332,7 +294,7 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
         await videoSource.add(t, frameDur);
         frames++;
         await pumpAudio(t);
-        opts.onProgress({ done: frames, total: totalFrames, stage: 'イントロ' });
+        opts.onProgress({ done: frames, total: totalFrames, stage: 'サムネ' });
       }
     }
 

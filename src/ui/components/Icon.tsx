@@ -25,7 +25,9 @@ export type IconName =
   | 'flip'
   | 'reset'
   | 'edit'
-  | 'video';
+  | 'video'
+  | 'play'
+  | 'pause';
 
 const PATHS: Record<IconName, string> = {
   home: 'M4 11 12 4l8 7M6 9.5V20h4.5v-5h3v5H18V9.5',
@@ -53,6 +55,8 @@ const PATHS: Record<IconName, string> = {
   reset: 'M4.5 12a7.5 7.5 0 1 0 2.4-5.5M4.5 4.5v4h4',
   edit: 'M5 19l1-4L15.5 5.5l3 3L9 18zM13.5 7.5l3 3',
   video: 'M4 6.5h11v11H4zM15 10.5l5-3v9l-5-3',
+  play: 'M8 5.5v13l10.5-6.5z',
+  pause: 'M7.5 5.5h3v13h-3zM13.5 5.5h3v13h-3z',
 };
 
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {

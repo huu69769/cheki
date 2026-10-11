@@ -243,9 +243,11 @@ export function VideoLab() {
               B：写真から入り込む
             </button>
           </div>
-          {mode === 'B' && file && (
+          {file && (
             <>
-              <p className="section-label">サムネ（入り込む前に、写真としてフィルムに入る1コマ）</p>
+              <p className="section-label">
+                サムネ（{mode === 'B' ? '入り込む前に写真として見える場面' : '再生前に1秒止めて見せる場面'}）
+              </p>
               <ThumbPicker file={file.blob} shapeId={shapeId} value={thumbTime} onChange={setThumbTime} />
             </>
           )}
