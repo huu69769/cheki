@@ -72,12 +72,12 @@ export function VideoLab() {
   const [aspect, setAspect] = useState<Aspect>('film');
   const [mode, setMode] = useState<Mode>('A');
   const [shapeId, setShapeId] = useState<FrameShapeId>('mini');
-  const [background, setBackground] = useState<Background>('blur');
+  const [background, setBackground] = useState<Background>('gradient');
   const [cpuFilter, setCpuFilter] = useState(false);
   const [short, setShort] = useState(false);
   // サムネは最初は「動画の最初の場面」。こだわりたいときだけ選び直す
   const [thumbTime, setThumbTime] = useState(0);
-  const [stillSeconds, setStillSeconds] = useState(1.5);
+  const [stillSeconds, setStillSeconds] = useState(1);
   const [sns, setSns] = useState<(ExportTestResult & { label: string }) | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; stage: string; startedAt: number } | null>(null);
   const [results, setResults] = useState<(ExportTestResult & { label: string; id: number })[]>([]);
