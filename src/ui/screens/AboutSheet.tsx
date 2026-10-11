@@ -44,7 +44,13 @@ export function AboutSheet({ onClose }: { onClose: () => void }) {
           <h3>そのほかの素材</h3>
           <p>フレームの柄、スタンプ、日付の数字、粒子・光漏れなどの効果は、すべてこのアプリのために作ったオリジナルです。</p>
           <h3>ソフトウェア</h3>
-          <p>React（MIT License）、@fontsource（フォントの配布パッケージ）を使っています。</p>
+          <p>React（MIT License）、@fontsource（フォントの配布パッケージ）、Mediabunny（MPL-2.0、動画の検証ページのみ）を使っています。</p>
+          <h3>開発用</h3>
+          <p>
+            <a className="link-btn" href="./?lab=video">
+              動画書き出しの動作テスト
+            </a>
+          </p>
         </div>
       </div>
     </div>

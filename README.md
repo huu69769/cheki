@@ -19,7 +19,7 @@
 | 元に戻す／やり直し | ✅ |
 | 書き出し → プレビュー → 保存・共有・編集に戻る | ✅ |
 
-フェーズ2（動画）は、フェーズ1の完成後に着手します。技術検証の結果は `docs/phase2-video-research.md` にまとめます。
+フェーズ2（動画）は、技術検証の結果を `docs/phase2-video-research.md` にまとめました。実機で試せる検証ページ：https://huu69769.github.io/cheki/?lab=video
 
 ## 公開のしくみ
 

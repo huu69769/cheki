@@ -31,6 +31,8 @@ export interface RenderOptions {
   uiMmPerPx?: number;
   /** フレームの背景をキャッシュする（プレビュー用） */
   cacheFrame?: boolean;
+  /** フレームの左上を置く位置（px）。動画の画面の中にフレームを置くときに使う */
+  origin?: { x: number; y: number };
 }
 
 export const DATE_STAMP_HEIGHT = 3.1;
@@ -211,7 +213,7 @@ export function renderDocument(ctx: CanvasRenderingContext2D, doc: PhotoDoc, pho
   const { pxPerMm } = opts;
 
   ctx.save();
-  ctx.setTransform(pxPerMm, 0, 0, pxPerMm, 0, 0);
+  ctx.setTransform(pxPerMm, 0, 0, pxPerMm, opts.origin?.x ?? 0, opts.origin?.y ?? 0);
 
   drawFrame(ctx, shape, doc.frame.styleId, pxPerMm, !!opts.cacheFrame);
 

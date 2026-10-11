@@ -910,3 +910,109 @@ input:focus-visible {
   font-weight: 600;
   margin: 0;
 }
+
+/* ---------- 検証ページ ---------- */
+.lab {
+  overflow-y: auto;
+  padding-bottom: calc(var(--safe-bottom) + 24px);
+}
+
+.lab .topbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+
+.lab-body {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.lab-body section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lab-body h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.lab .hint {
+  color: var(--sub);
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.lab-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.lab-table th,
+.lab-table td {
+  text-align: left;
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  word-break: break-all;
+}
+
+.lab-table th {
+  color: var(--sub);
+  font-weight: 400;
+  width: 46%;
+}
+
+.progress-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg3);
+  overflow: hidden;
+}
+
+.progress-bar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+
+.lab-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lab-error {
+  color: #ff8a80;
+  margin: 0;
+  font-size: 14px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.lab-result p {
+  margin: 0 0 6px;
+}
+
+.lab-log {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  color: var(--sub);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+a.icon-btn {
+  color: inherit;
+}
