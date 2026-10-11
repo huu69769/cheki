@@ -8,7 +8,10 @@ import { loadPhoto, type LoadedPhoto } from './core/render/photoSource';
 import { releaseCanvas } from './core/util/canvas';
 import { readExifDate } from './core/util/exif';
 import { platform, type PickedFile } from './platform';
+import { exportPhoto, type PhotoExportOptions } from './core/export/exportPhoto';
 import { AboutSheet } from './ui/screens/AboutSheet';
+import { ExportSheet } from './ui/editor/ExportSheet';
+import { PreviewScreen, type ExportedMedia } from './ui/screens/PreviewScreen';
 import { EditorScreen } from './ui/editor/EditorScreen';
 import { HomeScreen, type DraftSummary } from './ui/screens/HomeScreen';
 import { useToast } from './ui/components/Toast';
@@ -19,7 +22,7 @@ interface PhotoSession {
   history: HistoryState<PhotoDoc>;
 }
 
-type Screen = 'home' | 'editor';
+type Screen = 'home' | 'editor' | 'preview';
 
 async function photoDateOf(file: PickedFile): Promise<string> {
   const exif = await readExifDate(file.blob);
@@ -35,6 +38,9 @@ export default function App() {
   const [busy, setBusy] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftSummary | null>(null);
   const [showAbout, setShowAbout] = useState(false);
+  const [exportOpts, setExportOpts] = useState<PhotoExportOptions>({ format: 'jpeg', quality: 'high' });
+  const [showExport, setShowExport] = useState(false);
+  const [exported, setExported] = useState<ExportedMedia | null>(null);
 
   // ---- 下書き ----
   const refreshDraft = useCallback(async () => {
@@ -148,6 +154,31 @@ export default function App() {
     });
   };
 
+  // ---- 書き出し ----
+  const runExport = async (opts: PhotoExportOptions) => {
+    if (!session || !doc) return;
+    setShowExport(false);
+    setExportOpts(opts);
+    setBusy('書き出しています…');
+    // 表示を更新してから重い処理を始める
+    await new Promise((r) => setTimeout(r, 50));
+    try {
+      const r = await exportPhoto(doc, session.photo, opts);
+      setExported({ file: { blob: r.blob, filename: r.filename, mimeType: r.mimeType }, width: r.width, height: r.height });
+      setScreen('preview');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : '書き出しに失敗しました');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** 書き出したデータを捨てて、編集内容はそのまま編集画面に戻る */
+  const backToEdit = () => {
+    setExported(null);
+    setScreen('editor');
+  };
+
   // ---- 編集（元に戻す・やり直し） ----
   const apply = useCallback((fn: (d: PhotoDoc) => PhotoDoc, mergeKey?: string) => {
     setSession((s) => (s ? { ...s, history: pushHistory(s.history, fn(s.history.present), mergeKey ?? null, performance.now()) } : s));
@@ -166,7 +197,7 @@ export default function App() {
           onShowAbout={() => setShowAbout(true)}
         />
       )}
-      {screen === 'editor' && session && doc && (
+      {(screen === 'editor' || screen === 'preview') && session && doc && (
         <EditorScreen
           doc={doc}
           photo={session.photo}
@@ -177,8 +208,13 @@ export default function App() {
           canRedo={session.history.future.length > 0}
           onHome={goHome}
           onChangePhoto={changePhoto}
+          onExport={() => setShowExport(true)}
         />
       )}
+      {screen === 'editor' && showExport && doc && (
+        <ExportSheet doc={doc} initial={exportOpts} onCancel={() => setShowExport(false)} onExport={runExport} />
+      )}
+      {screen === 'preview' && exported && <PreviewScreen media={exported} onBackToEdit={backToEdit} />}
       {showAbout && <AboutSheet onClose={() => setShowAbout(false)} />}
       {busy && (
         <div className="busy" role="alert" aria-live="assertive">

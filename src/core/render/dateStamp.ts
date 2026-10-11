@@ -142,14 +142,17 @@ export function drawDateStamp(
       cx += m.digitW + m.gap;
     }
   }
-  // にじみ（光っている感じ）
-  ctx.shadowColor = color;
-  ctx.shadowBlur = h * 0.5 * pxPerUnit;
-  ctx.globalAlpha = 0.9;
   ctx.fillStyle = color;
+  ctx.shadowColor = color;
+  // にじみ（光っている感じ）：明るくする合成で重ねる
+  ctx.globalCompositeOperation = 'screen';
+  ctx.shadowBlur = h * 0.3 * pxPerUnit;
+  ctx.globalAlpha = 0.7;
   ctx.fill();
-  ctx.shadowBlur = h * 0.15 * pxPerUnit;
-  ctx.globalAlpha = 0.85;
+  // 数字そのもの
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.shadowBlur = h * 0.06 * pxPerUnit;
+  ctx.globalAlpha = 0.92;
   ctx.fill();
   ctx.restore();
 }

@@ -350,7 +350,7 @@ input:focus-visible {
 }
 
 .tab {
-  flex: 1 0 64px;
+  flex: 1 0 50px;
   height: 58px;
   display: flex;
   flex-direction: column;
@@ -358,7 +358,8 @@ input:focus-visible {
   justify-content: center;
   gap: 3px;
   color: var(--sub);
-  font-size: 11px;
+  font-size: 10.5px;
+  white-space: nowrap;
 }
 
 .tab.on {
@@ -796,22 +797,24 @@ input:focus-visible {
 /* ---------- 書き出しプレビュー ---------- */
 .preview {
   background: #0f0d0c;
+  z-index: 40;
 }
 
 .preview-media {
   flex: 1;
   min-height: 0;
-  display: grid;
-  place-items: center;
-  padding: 12px 16px;
+  position: relative;
 }
 
 .preview-media img,
 .preview-media video {
-  max-width: 100%;
-  max-height: 100%;
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  width: calc(100% - 32px);
+  height: calc(100% - 24px);
   object-fit: contain;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.6));
   -webkit-touch-callout: default;
 }
 
@@ -900,4 +903,10 @@ input:focus-visible {
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: -1px;
+}
+
+.topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
 }

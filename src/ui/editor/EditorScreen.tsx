@@ -38,10 +38,11 @@ interface Props {
   canRedo: boolean;
   onHome: () => void;
   onChangePhoto: () => void;
+  onExport: () => void;
 }
 
 export function EditorScreen(props: Props) {
-  const { doc, photo, apply, undo, redo, canUndo, canRedo, onHome, onChangePhoto } = props;
+  const { doc, photo, apply, undo, redo, canUndo, canRedo, onHome, onChangePhoto, onExport } = props;
   const [tool, setTool] = useState<ToolId>('frame');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [textDraft, setTextDraft] = useState<TextDraft | null>(null);
@@ -125,7 +126,15 @@ export function EditorScreen(props: Props) {
             <Icon name="redo" />
           </button>
         </div>
-        <span className="topbar-spacer" />
+        <button
+          className="primary-btn"
+          onClick={() => {
+            setSelectedId(null);
+            onExport();
+          }}
+        >
+          書き出す
+        </button>
       </header>
 
       <Stage
