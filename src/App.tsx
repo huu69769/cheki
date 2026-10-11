@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PHOTO_DRAFT_ID } from './config';
 import { createHistory, pushHistory, redoHistory, undoHistory, type HistoryState } from './core/history/history';
+import { loadFontFaces } from './core/fonts/fonts';
 import { createDoc, normalizeDoc, todayString } from './core/model/doc';
 import type { PhotoDoc } from './core/model/types';
 import { loadPhoto, type LoadedPhoto } from './core/render/photoSource';
@@ -51,7 +52,7 @@ export default function App() {
   useEffect(() => {
     void refreshDraft();
     // 文字入れ用フォントの定義（CSS）は、最初の表示を軽くするため後から読み込む
-    void import('./core/fonts/fontFaces');
+    void loadFontFaces();
   }, [refreshDraft]);
 
   // 編集内容は少し待ってから自動で下書きに保存する

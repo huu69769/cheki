@@ -27,7 +27,7 @@ export const FONTS: FontDef[] = [
   { id: 'dot', label: 'ドット', family: 'DotGothic16', weight: 400, sample: 'あいうえお', lineHeight: 1.3 },
   { id: 'system', label: 'ゴシック（標準）', family: '', weight: 700, sample: 'あいうえお', lineHeight: 1.3 },
   { id: 'caveat', label: 'Caveat', family: 'Caveat', weight: 600, sample: 'Hello!', lineHeight: 1.2 },
-  { id: 'pacifico', label: 'Pacifico', family: 'Pacifico', weight: 400, sample: 'Hello!', lineHeight: 1.5 },
+  { id: 'pacifico', label: 'Pacifico', family: 'Pacifico', weight: 400, sample: 'Hello!', lineHeight: 1.3 },
   { id: 'marker', label: 'Marker', family: 'Permanent Marker', weight: 400, sample: 'Hello!', lineHeight: 1.3 },
 ];
 
@@ -54,8 +54,17 @@ export function canvasFont(font: FontDef, px: number): string {
 export async function ensureFontLoaded(font: FontDef, text: string): Promise<void> {
   if (!font.family || typeof document === 'undefined' || !document.fonts) return;
   try {
+    await loadFontFaces();
     await document.fonts.load(`${font.weight} 32px "${font.family}"`, text || font.sample);
   } catch {
     // 読み込めなくても代わりのフォントで描画されるので無視する
   }
+}
+
+let facesPromise: Promise<unknown> | null = null;
+
+/** フォントの定義（@font-face の CSS）を読み込む。最初の表示を軽くするため、後から読み込んでいる */
+export function loadFontFaces(): Promise<unknown> {
+  facesPromise ??= import('./fontFaces');
+  return facesPromise;
 }
