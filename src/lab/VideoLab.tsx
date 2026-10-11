@@ -6,12 +6,13 @@ import { platform, type PickedFile } from '../platform';
 import { Icon } from '../ui/components/Icon';
 import { useToast } from '../ui/components/Toast';
 import { PreviewScreen, type ExportedMedia } from '../ui/screens/PreviewScreen';
+import { SnsPreview } from './SnsPreview';
 import {
-  ASPECT_SIZES,
   CancelledError,
   probeVideo,
   runExportTest,
   type Aspect,
+  type Background,
   type ExportTestResult,
   type InputInfo,
   type Mode,
@@ -67,12 +68,15 @@ export function VideoLab() {
   const [env, setEnv] = useState<Env | null>(null);
   const [file, setFile] = useState<PickedFile | null>(null);
   const [info, setInfo] = useState<InputInfo | null>(null);
-  const [aspect, setAspect] = useState<Aspect>('9:16');
-  const [mode, setMode] = useState<Mode>('B');
+  const [aspect, setAspect] = useState<Aspect>('film');
+  const [mode, setMode] = useState<Mode>('A');
   const [shapeId, setShapeId] = useState<FrameShapeId>('mini');
+  const [background, setBackground] = useState<Background>('blur');
   const [cpuFilter, setCpuFilter] = useState(false);
+  const [short, setShort] = useState(false);
+  const [sns, setSns] = useState<(ExportTestResult & { label: string }) | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; stage: string; startedAt: number } | null>(null);
-  const [result, setResult] = useState<(ExportTestResult & { label: string }) | null>(null);
+  const [results, setResults] = useState<(ExportTestResult & { label: string; id: number })[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ExportedMedia | null>(null);
   const signal = useRef({ cancelled: false });
@@ -87,7 +91,7 @@ export function VideoLab() {
       if (!f) return;
       setFile(f);
       setInfo(null);
-      setResult(null);
+      setResults([]);
       setError(null);
       try {
         setInfo(await probeVideo(f.blob));
@@ -100,23 +104,33 @@ export function VideoLab() {
   const run = async () => {
     if (!file) return;
     signal.current = { cancelled: false };
-    setResult(null);
     setError(null);
     const startedAt = performance.now();
     setProgress({ done: 0, total: 1, stage: '準備', startedAt });
-    const label = `モード${mode} / ${aspect} / ${shapeId}${cpuFilter ? ' / CPUフィルター' : ''}`;
+    const shapeLabel = shapeId === 'mini' ? 'ミニ' : shapeId === 'square' ? 'スクエア' : 'ワイド';
+    const label = [
+      mode === 'A' ? 'A：フレームの中で再生' : 'B：写真から入り込む',
+      aspect === 'film' ? 'フィルムの形そのまま' : aspect,
+      shapeLabel,
+      aspect === 'film' ? null : background === 'blur' ? '背景ぼかし' : '背景パステル',
+      cpuFilter ? 'CPUフィルター' : null,
+      short ? '5秒' : null,
+    ]
+      .filter(Boolean)
+      .join(' / ');
     try {
       const r = await runExportTest(file.blob, {
         aspect,
         mode,
         shapeId,
+        background,
         cpuFilter,
         fps: 30,
-        maxSeconds: MAX_VIDEO_SECONDS,
+        maxSeconds: short ? 5 : MAX_VIDEO_SECONDS,
         signal: signal.current,
         onProgress: (p) => setProgress({ ...p, startedAt }),
       });
-      setResult({ ...r, label });
+      setResults((list) => [{ ...r, label, id: Date.now() }, ...list]);
       setLog((l) => [
         ...l,
         `${label}：${fmtSec(r.elapsedMs)}（動画 ${r.outputSeconds.toFixed(1)} 秒、${r.frames}コマ、${(r.frames / (r.elapsedMs / 1000)).toFixed(1)} コマ/秒、${(r.blob.size / 1024 / 1024).toFixed(1)} MB、映像：${r.videoCodec}、音声：${r.audio}）`,
@@ -205,24 +219,66 @@ export function VideoLab() {
         <section>
           <h3>3. 書き出してみる</h3>
           <div className="segmented" role="radiogroup" aria-label="モード">
-            <button role="radio" aria-checked={mode === 'A'} className={mode === 'A' ? 'on' : ''} onClick={() => setMode('A')}>
+            <button
+              role="radio"
+              aria-checked={mode === 'A'}
+              className={mode === 'A' ? 'on' : ''}
+              onClick={() => setMode('A')}
+            >
               A：フレームの中で再生
             </button>
-            <button role="radio" aria-checked={mode === 'B'} className={mode === 'B' ? 'on' : ''} onClick={() => setMode('B')}>
+            <button
+              role="radio"
+              aria-checked={mode === 'B'}
+              className={mode === 'B' ? 'on' : ''}
+              onClick={() => {
+                setMode('B');
+                if (aspect === 'film') setAspect('9:16');
+              }}
+            >
               B：写真から入り込む
             </button>
           </div>
+          <p className="section-label">動画の形</p>
           <div className="chips">
-            {(Object.keys(ASPECT_SIZES) as Aspect[]).map((a) => (
-              <button key={a} className={`chip ${aspect === a ? 'on' : ''}`} aria-pressed={aspect === a} onClick={() => setAspect(a)}>
-                {a}
-              </button>
-            ))}
+            {(['film', '9:16', '1:1', '4:5'] as Aspect[])
+              .filter((a) => mode === 'A' || a !== 'film')
+              .map((a) => (
+                <button key={a} className={`chip ${aspect === a ? 'on' : ''}`} aria-pressed={aspect === a} onClick={() => setAspect(a)}>
+                  {a === 'film' ? 'フィルムの形そのまま' : a}
+                </button>
+              ))}
+          </div>
+          <p className="section-label">フレームの形</p>
+          <div className="chips">
             {(['mini', 'square', 'wide'] as FrameShapeId[]).map((s) => (
               <button key={s} className={`chip ${shapeId === s ? 'on' : ''}`} aria-pressed={shapeId === s} onClick={() => setShapeId(s)}>
                 {s === 'mini' ? 'ミニ' : s === 'square' ? 'スクエア' : 'ワイド'}
               </button>
             ))}
+          </div>
+          {aspect !== 'film' && (
+            <>
+              <p className="section-label">フレームのまわりの背景{mode === 'B' ? '（入り込む前の約2秒だけ見えます）' : ''}</p>
+              <div className="chips">
+                <button className={`chip ${background === 'blur' ? 'on' : ''}`} aria-pressed={background === 'blur'} onClick={() => setBackground('blur')}>
+                  動画をぼかしたもの
+                </button>
+                <button
+                  className={`chip ${background === 'gradient' ? 'on' : ''}`}
+                  aria-pressed={background === 'gradient'}
+                  onClick={() => setBackground('gradient')}
+                >
+                  パステル
+                </button>
+              </div>
+            </>
+          )}
+          <p className="section-label">そのほか</p>
+          <div className="chips">
+            <button className={`chip ${short ? 'on' : ''}`} aria-pressed={short} onClick={() => setShort(!short)}>
+              最初の5秒だけ（見比べ用）
+            </button>
             <button className={`chip ${cpuFilter ? 'on' : ''}`} aria-pressed={cpuFilter} onClick={() => setCpuFilter(!cpuFilter)}>
               フィルターあり（重さ確認）
             </button>
@@ -245,27 +301,36 @@ export function VideoLab() {
             </button>
           )}
           {error && <p className="lab-error">{error}</p>}
-          {result && (
-            <div className="lab-result">
+          {results.map((result) => (
+            <div className="lab-result" key={result.id}>
+              <p className="lab-result-label">{result.label}</p>
               <p>
                 <strong>{fmtSec(result.elapsedMs)}</strong> で完了（動画 {result.outputSeconds.toFixed(1)} 秒・{result.frames}コマ・
-                {(result.frames / (result.elapsedMs / 1000)).toFixed(1)} コマ/秒・{(result.blob.size / 1024 / 1024).toFixed(1)} MB）
+                {(result.frames / (result.elapsedMs / 1000)).toFixed(1)} コマ/秒・{(result.blob.size / 1024 / 1024).toFixed(1)} MB・
+                {result.width}×{result.height}）
               </p>
-              <p>映像：{result.videoCodec}・音声：{result.audio}</p>
-              <button
-                className="big-btn"
-                onClick={() =>
-                  setPreview({
-                    file: { blob: result.blob, filename: `test-${Date.now()}.mp4`, mimeType: 'video/mp4' },
-                    width: result.width,
-                    height: result.height,
-                  })
-                }
-              >
-                再生して確認・保存
-              </button>
+              <p>
+                映像：{result.videoCodec}・音声：{result.audio}
+              </p>
+              <div className="button-row">
+                <button className="tool-btn accent" onClick={() => setSns(result)}>
+                  SNSでの見え方
+                </button>
+                <button
+                  className="tool-btn"
+                  onClick={() =>
+                    setPreview({
+                      file: { blob: result.blob, filename: `test-${result.id}.mp4`, mimeType: 'video/mp4' },
+                      width: result.width,
+                      height: result.height,
+                    })
+                  }
+                >
+                  再生して確認・保存
+                </button>
+              </div>
             </div>
-          )}
+          ))}
         </section>
 
         <section>
@@ -283,6 +348,7 @@ export function VideoLab() {
         </section>
       </div>
       {preview && <PreviewScreen media={preview} onBackToEdit={() => setPreview(null)} />}
+      {sns && <SnsPreview blob={sns.blob} width={sns.width} height={sns.height} label={sns.label} onClose={() => setSns(null)} />}
     </div>
   );
 }

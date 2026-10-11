@@ -25,14 +25,25 @@ import { filterCanvasInPlace } from '../core/render/photoSource';
 import { renderDocument } from '../core/render/renderer';
 import { createCanvas, get2d } from '../core/util/canvas';
 
-export type Aspect = '9:16' | '1:1' | '4:5';
+/** 'film' は、フィルムの形そのまま（余白・背景なし）の動画 */
+export type Aspect = 'film' | '9:16' | '1:1' | '4:5';
 export type Mode = 'A' | 'B';
+export type Background = 'gradient' | 'blur';
 
-export const ASPECT_SIZES: Record<Aspect, { w: number; h: number }> = {
+export const ASPECT_SIZES: Record<Exclude<Aspect, 'film'>, { w: number; h: number }> = {
   '9:16': { w: 1080, h: 1920 },
   '1:1': { w: 1080, h: 1080 },
   '4:5': { w: 1080, h: 1350 },
 };
+
+/** 書き出す動画の大きさ（H.264 のため偶数にそろえる） */
+export function outputSize(aspect: Aspect, shapeId: FrameShapeId): { w: number; h: number } {
+  if (aspect !== 'film') return ASPECT_SIZES[aspect];
+  const s = FRAME_SHAPES[shapeId];
+  // 横長（ワイド）は高さを1080に、それ以外は幅を1080にする
+  if (s.width > s.height) return { w: Math.round((1080 * s.width) / s.height / 2) * 2, h: 1080 };
+  return { w: 1080, h: Math.round((1080 * s.height) / s.width / 2) * 2 };
+}
 
 export interface InputInfo {
   mimeType: string;
@@ -71,6 +82,7 @@ export interface ExportTestOptions {
   aspect: Aspect;
   mode: Mode;
   shapeId: FrameShapeId;
+  background: Background;
   maxSeconds: number;
   /** 1コマずつ CPU でフィルターをかける（重さの確認用） */
   cpuFilter: boolean;
@@ -106,7 +118,7 @@ export class CancelledError extends Error {
 
 export async function runExportTest(file: Blob, opts: ExportTestOptions): Promise<ExportTestResult> {
   const t0 = performance.now();
-  const { w: W, h: H } = ASPECT_SIZES[opts.aspect];
+  const { w: W, h: H } = outputSize(opts.aspect, opts.shapeId);
   const shape = FRAME_SHAPES[opts.shapeId];
   const win = shape.window;
 
@@ -119,7 +131,8 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
   await ensureFontLoaded(getFont('yomogi'), '動画テスト');
 
   // 画面の中のフレームの置き方（フレーム全体が収まる大きさ）
-  const fitPx = Math.min((W * 0.86) / shape.width, (H * 0.8) / shape.height);
+  // （フィルムの形そのままのときは、余白なしで画面いっぱい）
+  const fitPx = opts.aspect === 'film' ? W / shape.width : Math.min((W * 0.86) / shape.width, (H * 0.8) / shape.height);
   const fitOrigin = { x: (W - shape.width * fitPx) / 2, y: (H - shape.height * fitPx) / 2 };
   // 窓が画面いっぱいになる大きさ（モードBの最後）
   const zoomPx = Math.max(W / win.w, H / win.h);
@@ -203,6 +216,30 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
     };
 
     const winPx = (k: number) => ({ w: Math.round(win.w * k), h: Math.round(win.h * k) });
+
+    // 背景：パステルのグラデーション、または動画のコマを大きくぼかしたもの
+    const tiny = createCanvas(Math.max(8, Math.round(W / 40)), Math.max(8, Math.round(H / 40)));
+    const mid = createCanvas(Math.round(W / 8), Math.round(H / 8));
+    const drawBackground = (src: CanvasImageSource, sw: number, sh: number) => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      if (opts.background === 'blur') {
+        // 小さく縮めてから引き伸ばすと、軽い処理で強くぼかせる
+        const tctx = get2d(tiny);
+        const k = Math.max(tiny.width / sw, tiny.height / sh);
+        tctx.drawImage(src, (tiny.width - sw * k) / 2, (tiny.height - sh * k) / 2, sw * k, sh * k);
+        get2d(mid).drawImage(tiny, 0, 0, mid.width, mid.height);
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(mid, 0, 0, W, H);
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillRect(0, 0, W, H);
+      } else {
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, '#f6d9c7');
+        bg.addColorStop(1, '#d9c7e8');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+      }
+    };
     const drawFramed = (
       img: CanvasImageSource,
       iw: number,
@@ -211,12 +248,7 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
       origin: { x: number; y: number },
       cacheFrame: boolean,
     ) => {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      const bg = ctx.createLinearGradient(0, 0, 0, H);
-      bg.addColorStop(0, '#f6d9c7');
-      bg.addColorStop(1, '#d9c7e8');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
+      if (opts.aspect !== 'film') drawBackground(img, iw, ih);
       renderDocument(ctx, doc, { image: img, width: iw, height: ih }, { pxPerMm, origin, cacheFrame });
     };
 

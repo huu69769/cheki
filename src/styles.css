@@ -1016,3 +1016,206 @@ input:focus-visible {
 a.icon-btn {
   color: inherit;
 }
+
+.lab .section-label {
+  margin: 4px 0 -4px;
+}
+
+.lab-result {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--bg2);
+  font-size: 13.5px;
+}
+
+.lab-result-label {
+  font-weight: 700;
+}
+
+/* ---------- SNSでの見え方（検証ページ） ---------- */
+.sns-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: var(--bg);
+  overflow-y: auto;
+  padding: var(--safe-top) var(--safe-right) calc(var(--safe-bottom) + 24px) var(--safe-left);
+}
+
+.sns-overlay .topbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+
+.sns-body {
+  padding: 0 16px;
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.sns-case {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sns-case h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.sns-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.mock-phone {
+  width: min(260px, 72vw);
+  margin: 4px auto;
+  border-radius: 22px;
+  border: 6px solid #3a3533;
+  overflow: hidden;
+  background: #000;
+}
+
+.sns-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+}
+
+.mock-shorts {
+  position: relative;
+  aspect-ratio: 9 / 16;
+}
+
+.mock-shorts .sns-video {
+  position: absolute;
+  inset: 0;
+}
+
+.mock-shorts-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mock-side {
+  position: absolute;
+  right: 8px;
+  bottom: 18%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mock-side span {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(160, 160, 160, 0.75);
+}
+
+.mock-caption {
+  position: absolute;
+  left: 10px;
+  right: 52px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mock-caption span,
+.mock-line {
+  display: block;
+  height: 9px;
+  border-radius: 5px;
+  background: rgba(160, 160, 160, 0.75);
+}
+
+.mock-feed {
+  background: #fff;
+  border-color: #3a3533;
+}
+
+.mock-feed-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.mock-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #d0d0d0;
+}
+
+.mock-feed .mock-line {
+  background: #d0d0d0;
+}
+
+.mock-feed-media {
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.mock-feed-actions {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+}
+
+.mock-feed-actions span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #c0c0c0;
+}
+
+.mock-feed-caption {
+  position: static;
+  padding: 0 8px 12px;
+}
+
+.mock-feed-caption span {
+  background: #d8d8d8;
+}
+
+.mock-chat {
+  background: #8aa6c8;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mock-bubble-left {
+  align-self: flex-start;
+  width: 60%;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.mock-bubble-left .mock-line {
+  background: #d0d0d0;
+}
+
+.mock-chat-media {
+  align-self: flex-end;
+  width: 62%;
+  border-radius: 12px;
+  overflow: hidden;
+}
