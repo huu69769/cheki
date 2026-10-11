@@ -1281,3 +1281,37 @@ a.icon-btn {
   color: var(--sub);
   font-size: 12px;
 }
+
+/* ---------- 動画の再生バー（編集画面） ---------- */
+.video-controls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 4px;
+}
+
+.video-controls .icon-btn.muted {
+  color: var(--accent);
+}
+
+.export-progress {
+  width: min(280px, 70vw);
+}
+
+.busy-note {
+  max-width: 300px;
+  text-align: center;
+  color: var(--sub);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.busy .big-btn {
+  min-width: 180px;
+  padding: 0 24px;
+}
+
+.busy-solid {
+  background: rgba(16, 14, 12, 0.94);
+}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FILTERS, type FilterDef } from '../../../core/filters/filters';
 import type { PhotoDoc } from '../../../core/model/types';
-import { filterCanvasInPlace, resizeCanvas, type LoadedPhoto } from '../../../core/render/photoSource';
+import { filterCanvasInPlace, resizeCanvas } from '../../../core/render/photoSource';
 import { createCanvas, get2d, releaseCanvas } from '../../../core/util/canvas';
 import { Slider } from '../../components/Slider';
 import type { ApplyFn } from '../Stage';
@@ -9,8 +9,8 @@ import type { ApplyFn } from '../Stage';
 const THUMB = 112;
 
 /** 見本用：写真の中央を正方形に切り抜いた小さな画像 */
-function makeThumbBase(photo: LoadedPhoto): HTMLCanvasElement {
-  const small = resizeCanvas(photo.canvas, THUMB * 2);
+function makeThumbBase(sample: HTMLCanvasElement): HTMLCanvasElement {
+  const small = resizeCanvas(sample, THUMB * 2);
   const side = Math.min(small.width, small.height);
   const c = createCanvas(THUMB, THUMB);
   get2d(c).drawImage(small, (small.width - side) / 2, (small.height - side) / 2, side, side, 0, 0, THUMB, THUMB);
@@ -32,13 +32,15 @@ function FilterThumb({ base, filter }: { base: HTMLCanvasElement; filter: Filter
   return <canvas ref={ref} />;
 }
 
-export function FilterPanel({ doc, apply, photo }: { doc: PhotoDoc; apply: ApplyFn; photo: LoadedPhoto }) {
+/** sample：見本に使う画像（写真、または動画のいまのコマ） */
+export function FilterPanel({ doc, apply, sample }: { doc: PhotoDoc; apply: ApplyFn; sample: HTMLCanvasElement | null }) {
   const [base, setBase] = useState<HTMLCanvasElement | null>(null);
   useEffect(() => {
-    const b = makeThumbBase(photo);
+    if (!sample) return;
+    const b = makeThumbBase(sample);
     setBase(b);
     return () => releaseCanvas(b);
-  }, [photo]);
+  }, [sample]);
   const fx = doc.effects;
   return (
     <div className="panel">

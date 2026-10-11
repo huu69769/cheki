@@ -16,14 +16,17 @@ function normalize(rad: number): number {
 interface Props {
   doc: PhotoDoc;
   apply: ApplyFn;
-  onChangePhoto: () => void;
+  /** 写真を選び直す（動画のときは出さない） */
+  onChangePhoto?: () => void;
+  /** 写真か動画か（説明の文言に使う） */
+  noun?: string;
 }
 
-export function PhotoPanel({ doc, apply, onChangePhoto }: Props) {
+export function PhotoPanel({ doc, apply, onChangePhoto, noun = '写真' }: Props) {
   const t = doc.photo;
   return (
     <div className="panel">
-      <p className="hint">写真を指で動かせます。2本指で拡大・回転できます。</p>
+      <p className="hint">{noun}を指で動かせます。2本指で拡大・回転できます。</p>
       <Slider
         label="拡大"
         min={0.5}
@@ -63,10 +66,12 @@ export function PhotoPanel({ doc, apply, onChangePhoto }: Props) {
           <Icon name="reset" />
           リセット
         </button>
-        <button className="tool-btn" onClick={onChangePhoto}>
-          <Icon name="image" />
-          写真を変更
-        </button>
+        {onChangePhoto && (
+          <button className="tool-btn" onClick={onChangePhoto}>
+            <Icon name="image" />
+            写真を変更
+          </button>
+        )}
       </div>
     </div>
   );

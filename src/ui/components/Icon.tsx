@@ -27,7 +27,10 @@ export type IconName =
   | 'edit'
   | 'video'
   | 'play'
-  | 'pause';
+  | 'pause'
+  | 'trim'
+  | 'volume'
+  | 'mute';
 
 const PATHS: Record<IconName, string> = {
   home: 'M4 11 12 4l8 7M6 9.5V20h4.5v-5h3v5H18V9.5',
@@ -57,6 +60,9 @@ const PATHS: Record<IconName, string> = {
   video: 'M4 6.5h11v11H4zM15 10.5l5-3v9l-5-3',
   play: 'M8 5.5v13l10.5-6.5z',
   pause: 'M7.5 5.5h3v13h-3zM13.5 5.5h3v13h-3z',
+  trim: 'M8 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0M8 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0M7.5 8.5 19 18M7.5 15.5 19 6',
+  volume: 'M4 9.5h3.5L12 6v12l-4.5-3.5H4zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11',
+  mute: 'M4 9.5h3.5L12 6v12l-4.5-3.5H4zM16 9.5l5 5M21 9.5l-5 5',
 };
 
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {

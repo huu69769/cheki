@@ -28,7 +28,7 @@ export function AboutSheet({ onClose }: { onClose: () => void }) {
         <div className="sheet-body">
           <p>
             {APP_NAME}
-            は、写真をインスタントカメラ風に加工するアプリです。写真の読み込みから書き出しまで、すべてこの端末の中で処理します。写真が外部のサーバーに送られることはありません。
+            は、写真や動画をインスタントカメラ風に加工するアプリです。読み込みから書き出しまで、すべてこの端末の中で処理します。写真や動画が外部のサーバーに送られることはありません。
           </p>
           <h3>フォント</h3>
           <ul className="license-list">
@@ -44,7 +44,7 @@ export function AboutSheet({ onClose }: { onClose: () => void }) {
           <h3>そのほかの素材</h3>
           <p>フレームの柄、スタンプ、日付の数字、粒子・光漏れなどの効果は、すべてこのアプリのために作ったオリジナルです。</p>
           <h3>ソフトウェア</h3>
-          <p>React（MIT License）、@fontsource（フォントの配布パッケージ）、Mediabunny（MPL-2.0、動画の検証ページのみ）を使っています。</p>
+          <p>React（MIT License）、@fontsource（フォントの配布パッケージ）、Mediabunny（MPL-2.0、動画の読み込み・書き出し）を使っています。</p>
           <h3>開発用</h3>
           <p>
             <a className="link-btn" href="./?lab=video">

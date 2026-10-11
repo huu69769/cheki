@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { getFrameStyle } from '../../core/frames/styles';
 import { DEFAULT_FONT_ID, ensureFontLoaded, getFont } from '../../core/fonts/fonts';
 import { createTextLayer, removeLayer, updateLayer } from '../../core/model/doc';
 import type { PhotoDoc, TextLayer } from '../../core/model/types';
 import type { LoadedPhoto } from '../../core/render/photoSource';
+import type { VideoPlayer } from '../../core/video/videoPlayer';
 import { Icon, type IconName } from '../components/Icon';
 import { DatePanel } from './panels/DatePanel';
 import { EffectsPanel } from './panels/EffectsPanel';
@@ -13,12 +14,14 @@ import { FramePanel } from './panels/FramePanel';
 import { StampPanel } from './panels/StampPanel';
 import { PhotoPanel } from './panels/PhotoPanel';
 import { TextPanel } from './panels/TextPanel';
+import { ThumbPanel, TrimPanel, VideoControls, VideoModePanel } from './panels/VideoPanels';
 import { Stage, type ApplyFn } from './Stage';
+import { usePhotoStageSource, useVideoStageSource } from './stageSources';
 import { TextEditor, type TextDraft } from './TextEditor';
 
-type ToolId = 'frame' | 'photo' | 'text' | 'filter' | 'effects' | 'date' | 'stamp';
+type ToolId = 'video' | 'trim' | 'thumb' | 'frame' | 'photo' | 'text' | 'filter' | 'effects' | 'date' | 'stamp';
 
-const TOOLS: { id: ToolId; label: string; icon: IconName }[] = [
+const COMMON_TOOLS: { id: ToolId; label: string; icon: IconName }[] = [
   { id: 'frame', label: 'フレーム', icon: 'frame' },
   { id: 'photo', label: '写真', icon: 'move' },
   { id: 'text', label: '文字', icon: 'text' },
@@ -28,9 +31,12 @@ const TOOLS: { id: ToolId; label: string; icon: IconName }[] = [
   { id: 'stamp', label: 'スタンプ', icon: 'sticker' },
 ];
 
+/** 編集するもの：写真、または動画 */
+export type EditorMedia = { kind: 'photo'; photo: LoadedPhoto } | { kind: 'video'; player: VideoPlayer };
+
 interface Props {
   doc: PhotoDoc;
-  photo: LoadedPhoto;
+  media: EditorMedia;
   apply: ApplyFn;
   undo: () => void;
   redo: () => void;
@@ -42,8 +48,11 @@ interface Props {
 }
 
 export function EditorScreen(props: Props) {
-  const { doc, photo, apply, undo, redo, canUndo, canRedo, onHome, onChangePhoto, onExport } = props;
-  const [tool, setTool] = useState<ToolId>('frame');
+  const { doc, media, apply, undo, redo, canUndo, canRedo, onHome, onChangePhoto, onExport } = props;
+  const isVideo = media.kind === 'video';
+  const photo = media.kind === 'photo' ? media.photo : null;
+  const player = media.kind === 'video' ? media.player : null;
+  const [tool, setTool] = useState<ToolId>(isVideo ? 'video' : 'frame');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [textDraft, setTextDraft] = useState<TextDraft | null>(null);
   const [lastFontId, setLastFontId] = useState(DEFAULT_FONT_ID);
@@ -51,6 +60,62 @@ export function EditorScreen(props: Props) {
 
   const selectedLayer = doc.layers.find((l) => l.id === selectedId) ?? null;
   const frameStyle = getFrameStyle(doc.frame.styleId);
+
+  // ---- 動画の再生（プレビュー） ----
+  const [frame, setFrame] = useState<HTMLCanvasElement | null>(player?.frame ?? null);
+  const [frameVersion, setFrameVersion] = useState(0);
+  const [currentTime, setCurrentTime] = useState(player?.time ?? 0);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
+  useEffect(() => {
+    if (!player) return;
+    player.setCallbacks({
+      onFrame: (f, t) => {
+        setFrame(f);
+        setCurrentTime(t);
+        setFrameVersion((n) => n + 1);
+      },
+      onPlayingChange: setPlaying,
+    });
+    if (!player.frame) void player.seek(doc.video?.trimStart ?? 0);
+    return () => {
+      player.pause();
+      player.setCallbacks({ onFrame: () => {}, onPlayingChange: () => {} });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player]);
+  const trimStart = doc.video?.trimStart ?? 0;
+  const trimEnd = doc.video?.trimEnd ?? 0;
+  useEffect(() => {
+    player?.setRange(trimStart, trimEnd);
+  }, [player, trimStart, trimEnd]);
+  const seek = (t: number) => {
+    if (!player) return;
+    setCurrentTime(t);
+    void player.seek(t);
+  };
+
+  const videoSize = useMemo(
+    () => (player ? { width: player.media.info.width, height: player.media.info.height } : null),
+    [player],
+  );
+  const photoSource = usePhotoStageSource(photo);
+  const videoSource = useVideoStageSource(frame, frameVersion, videoSize);
+  const stageSource = (isVideo ? videoSource : photoSource)!;
+
+  const tools = useMemo(() => {
+    if (!isVideo) return COMMON_TOOLS;
+    const videoTools: { id: ToolId; label: string; icon: IconName }[] = [
+      { id: 'video', label: '動画', icon: 'video' },
+      { id: 'trim', label: '長さ', icon: 'trim' },
+    ];
+    if (doc.video?.mode === 'B') videoTools.push({ id: 'thumb', label: 'サムネ', icon: 'image' });
+    return [...videoTools, ...COMMON_TOOLS.map((t) => (t.id === 'photo' ? { ...t, label: '位置' } : t))];
+  }, [isVideo, doc.video?.mode]);
+  // サムネのタブが消えたとき（入り込まない方に変えたとき）は「動画」タブに戻す
+  useEffect(() => {
+    if (!tools.some((t) => t.id === tool)) setTool(tools[0].id);
+  }, [tools, tool]);
 
   // ---- フォントの読み込み（使っている文字の分だけ）。読み込めたら描き直す ----
   const [fontsVersion, setFontsVersion] = useState(0);
@@ -130,6 +195,7 @@ export function EditorScreen(props: Props) {
           className="primary-btn"
           onClick={() => {
             setSelectedId(null);
+            player?.pause();
             onExport();
           }}
         >
@@ -139,7 +205,7 @@ export function EditorScreen(props: Props) {
 
       <Stage
         doc={doc}
-        photo={photo}
+        source={stageSource}
         selectedId={selectedLayer ? selectedLayer.id : null}
         onSelect={select}
         apply={apply}
@@ -147,11 +213,33 @@ export function EditorScreen(props: Props) {
         fontsVersion={fontsVersion}
       />
 
+      {player && (
+        <VideoControls
+          doc={doc}
+          playing={playing}
+          currentTime={currentTime}
+          muted={muted}
+          onTogglePlay={() => (playing ? player.pause() : player.play())}
+          onSeek={seek}
+          onToggleMute={() => {
+            player.setMuted(!muted);
+            setMuted(!muted);
+          }}
+        />
+      )}
+
       <div className="bottom">
         <div className="panel-area">
+          {tool === 'video' && <VideoModePanel doc={doc} apply={apply} />}
+          {tool === 'trim' && player && (
+            <TrimPanel doc={doc} apply={apply} duration={player.media.info.duration} currentTime={currentTime} onSeek={seek} />
+          )}
+          {tool === 'thumb' && <ThumbPanel doc={doc} apply={apply} currentTime={currentTime} onSeek={seek} />}
           {tool === 'frame' && <FramePanel doc={doc} apply={apply} />}
-          {tool === 'photo' && <PhotoPanel doc={doc} apply={apply} onChangePhoto={onChangePhoto} />}
-          {tool === 'filter' && <FilterPanel doc={doc} apply={apply} photo={photo} />}
+          {tool === 'photo' && (
+            <PhotoPanel doc={doc} apply={apply} onChangePhoto={isVideo ? undefined : onChangePhoto} noun={isVideo ? '動画' : '写真'} />
+          )}
+          {tool === 'filter' && <FilterPanel doc={doc} apply={apply} sample={photo ? photo.canvas : frame} />}
           {tool === 'effects' && <EffectsPanel doc={doc} apply={apply} />}
           {tool === 'date' && <DatePanel doc={doc} apply={apply} />}
           {tool === 'stamp' && (
@@ -174,7 +262,7 @@ export function EditorScreen(props: Props) {
           )}
         </div>
         <nav className="tabbar" aria-label="編集メニュー">
-          {TOOLS.map((t) => (
+          {tools.map((t) => (
             <button
               key={t.id}
               className={`tab ${tool === t.id ? 'on' : ''}`}

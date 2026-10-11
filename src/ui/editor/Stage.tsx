@@ -4,14 +4,25 @@ import type { Layer, PhotoDoc } from '../../core/model/types';
 import { removeLayer, updateLayer } from '../../core/model/doc';
 import { fitPhotoToWindow } from '../../core/model/photoFit';
 import { hitTestLayers, selectionHandles } from '../../core/render/geometry';
-import { PreviewPhotoCache, type LoadedPhoto } from '../../core/render/photoSource';
-import { HANDLE_RADIUS_PX, SELECTION_PAD_PX, renderDocument } from '../../core/render/renderer';
+import { HANDLE_RADIUS_PX, SELECTION_PAD_PX, renderDocument, type PhotoSource } from '../../core/render/renderer';
 
 export type ApplyFn = (fn: (d: PhotoDoc) => PhotoDoc, mergeKey?: string) => void;
 
+/**
+ * 窓の中に表示するもの（写真、または動画のいまのコマ）。
+ * version が変わると描き直す（動画は新しいコマのたびに変わる）。
+ */
+export interface StageSource {
+  get: (doc: PhotoDoc) => PhotoSource | null;
+  /** 写真・動画の表示上の大きさ */
+  width: number;
+  height: number;
+  version: number;
+}
+
 interface Props {
   doc: PhotoDoc;
-  photo: LoadedPhoto;
+  source: StageSource;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   apply: ApplyFn;
@@ -60,10 +71,9 @@ function snapAngle(a: number): number {
 
 let gestureCounter = 0;
 
-export function Stage({ doc, photo, selectedId, onSelect, apply, onTapSelectedText, fontsVersion }: Props) {
+export function Stage({ doc, source, selectedId, onSelect, apply, onTapSelectedText, fontsVersion }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cacheRef = useRef<PreviewPhotoCache | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [overflow, setOverflow] = useState(false);
 
@@ -77,11 +87,6 @@ export function Stage({ doc, photo, selectedId, onSelect, apply, onTapSelectedTe
 
   const pointers = useRef(new Map<number, Pt>());
   const gesture = useRef<Gesture | null>(null);
-
-  useEffect(() => {
-    cacheRef.current = new PreviewPhotoCache();
-    return () => cacheRef.current?.dispose();
-  }, []);
 
   useLayoutEffect(() => {
     const el = wrapRef.current;
@@ -103,8 +108,7 @@ export function Stage({ doc, photo, selectedId, onSelect, apply, onTapSelectedTe
   // 描画
   useEffect(() => {
     const canvas = canvasRef.current;
-    const cache = cacheRef.current;
-    if (!canvas || !cache || box.w === 0) return;
+    if (!canvas || box.w === 0) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
     const pw = Math.round(cssW * dpr);
     const ph = Math.round(cssH * dpr);
@@ -113,7 +117,7 @@ export function Stage({ doc, photo, selectedId, onSelect, apply, onTapSelectedTe
     const id = requestAnimationFrame(() => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const src = cache.get(photo, doc.effects.filterId, doc.effects.filterStrength);
+      const src = source.get(doc);
       const pxPerMm = pw / shape.width;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, pw, ph);
@@ -126,7 +130,7 @@ export function Stage({ doc, photo, selectedId, onSelect, apply, onTapSelectedTe
       });
     });
     return () => cancelAnimationFrame(id);
-  }, [doc, photo, selectedId, overflow, cssW, cssH, cssScale, shape.width, box.w, fontsVersion]);
+  }, [doc, source, selectedId, overflow, cssW, cssH, cssScale, shape.width, box.w, fontsVersion]);
 
   // ---- 指の操作 ----
   const toMm = (e: { clientX: number; clientY: number }): Pt => {
@@ -302,7 +306,7 @@ export function Stage({ doc, photo, selectedId, onSelect, apply, onTapSelectedTe
       if (layer?.kind === 'text') onTapSelectedText(id);
     }
     if (g.moved && g.target.kind === 'photo') {
-      apply((d) => fitPhotoToWindow(d, photo.width, photo.height), g.key);
+      apply((d) => fitPhotoToWindow(d, source.width, source.height), g.key);
     }
     gesture.current = null;
     setOverflow(false);

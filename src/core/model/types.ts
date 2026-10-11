@@ -81,6 +81,24 @@ export interface DateStampSettings {
   color: string;
 }
 
+/** 動画のモード。A：フレームの中で再生（入り込まない）／B：サムネの写真から入り込む */
+export type VideoMode = 'A' | 'B';
+/** 書き出す動画の形。'film' はフィルムの形そのまま（背景なし） */
+export type VideoAspect = 'film' | '9:16' | '4:5' | '1:1' | '16:9';
+
+export interface VideoSettings {
+  mode: VideoMode;
+  /** モードAの動画の形 */
+  aspectA: VideoAspect;
+  /** モードBの動画の形（本編を画面いっぱいに映すので 'film' は使わない） */
+  aspectB: Exclude<VideoAspect, 'film'>;
+  /** サムネ（モードBで入り込む前に見せる場面）の時刻（秒）。null のときは使う範囲の始まり */
+  thumbTime: number | null;
+  /** 使う範囲（秒） */
+  trimStart: number;
+  trimEnd: number;
+}
+
 export interface PhotoDoc {
   version: 1;
   frame: {
@@ -92,4 +110,6 @@ export interface PhotoDoc {
   dateStamp: DateStampSettings;
   /** 後ろにあるものほど手前に描かれる */
   layers: Layer[];
+  /** 動画を編集しているときだけ使う設定 */
+  video?: VideoSettings;
 }

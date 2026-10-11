@@ -10,6 +10,7 @@ export interface DraftSummary {
 interface Props {
   draft: DraftSummary | null;
   onPick: (source: 'camera' | 'library') => void;
+  onPickVideo: () => void;
   onResume: () => void;
   onDeleteDraft: () => void;
   onShowAbout: () => void;
@@ -21,7 +22,7 @@ function formatTime(ms: number): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-export function HomeScreen({ draft, onPick, onResume, onDeleteDraft, onShowAbout }: Props) {
+export function HomeScreen({ draft, onPick, onPickVideo, onResume, onDeleteDraft, onShowAbout }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   useEffect(() => setConfirmDelete(false), [draft]);
 
@@ -37,7 +38,7 @@ export function HomeScreen({ draft, onPick, onResume, onDeleteDraft, onShowAbout
           </div>
         </div>
         <h1 className="home-title">{APP_NAME}</h1>
-        <p className="home-sub">インスタントカメラ風の写真をつくろう</p>
+        <p className="home-sub">インスタントカメラ風の写真・動画をつくろう</p>
       </div>
 
       <div className="home-actions">
@@ -48,6 +49,10 @@ export function HomeScreen({ draft, onPick, onResume, onDeleteDraft, onShowAbout
         <button className="big-btn" onClick={() => onPick('camera')}>
           <Icon name="camera" size={26} />
           カメラで撮る
+        </button>
+        <button className="big-btn" onClick={onPickVideo}>
+          <Icon name="video" size={26} />
+          動画を選ぶ
         </button>
 
         {draft && (
@@ -73,7 +78,7 @@ export function HomeScreen({ draft, onPick, onResume, onDeleteDraft, onShowAbout
       </div>
 
       <footer className="home-footer">
-        <p>写真はこの端末の中だけで加工します。外部に送信されることはありません。</p>
+        <p>写真や動画はこの端末の中だけで加工します。外部に送信されることはありません。</p>
         <button className="link-btn" onClick={onShowAbout}>
           このアプリについて・ライセンス
         </button>
