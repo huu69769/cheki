@@ -10,6 +10,7 @@ import { SnsPreview } from './SnsPreview';
 import { ThumbPicker } from './ThumbPicker';
 import {
   CancelledError,
+  autoSettings,
   probeVideo,
   runExportTest,
   type Aspect,
@@ -69,9 +70,14 @@ export function VideoLab() {
   const [env, setEnv] = useState<Env | null>(null);
   const [file, setFile] = useState<PickedFile | null>(null);
   const [info, setInfo] = useState<InputInfo | null>(null);
-  const [aspect, setAspect] = useState<Aspect>('film');
+  // 動画の形はモードごとに覚えておく（入り込まない方：フィルムの形そのまま／入り込む方：元の動画に近い比率）
+  const [aspectA, setAspectA] = useState<Aspect>('film');
+  const [aspectB, setAspectB] = useState<Aspect>('9:16');
+  const [autoNote, setAutoNote] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('A');
   const [shapeId, setShapeId] = useState<FrameShapeId>('mini');
+  const aspect = mode === 'A' ? aspectA : aspectB;
+  const setAspect = (a: Aspect) => (mode === 'A' ? setAspectA(a) : setAspectB(a));
   const [background, setBackground] = useState<Background>('gradient');
   const [cpuFilter, setCpuFilter] = useState(false);
   const [short, setShort] = useState(false);
@@ -99,7 +105,15 @@ export function VideoLab() {
       setThumbTime(0);
       setError(null);
       try {
-        setInfo(await probeVideo(f.blob));
+        const probed = await probeVideo(f.blob);
+        setInfo(probed);
+        // フレームの形・動画の形を、元の動画に合わせて自動で選ぶ（あとから変更できる）
+        const auto = autoSettings(probed);
+        setShapeId(auto.shapeId);
+        setAspectA('film');
+        setAspectB(auto.aspectB);
+        const shapeName = auto.shapeId === 'mini' ? 'ミニ' : auto.shapeId === 'square' ? 'スクエア' : 'ワイド';
+        setAutoNote(`元の動画に合わせて、フレームは「${shapeName}」、入り込む方の動画の形は「${auto.aspectB}」を選びました（変更できます）。`);
       } catch (e) {
         setError(`動画を調べられませんでした：${e instanceof Error ? e.message : String(e)}`);
       }
@@ -240,7 +254,6 @@ export function VideoLab() {
               className={mode === 'B' ? 'on' : ''}
               onClick={() => {
                 setMode('B');
-                if (aspect === 'film') setAspect('9:16');
               }}
             >
               B：写真から入り込む
@@ -265,9 +278,10 @@ export function VideoLab() {
               </div>
             </>
           )}
+          {autoNote && <p className="hint">{autoNote}</p>}
           <p className="section-label">動画の形</p>
           <div className="chips">
-            {(['film', '9:16', '1:1', '4:5'] as Aspect[])
+            {(['film', '9:16', '4:5', '1:1', '16:9'] as Aspect[])
               .filter((a) => mode === 'A' || a !== 'film')
               .map((a) => (
                 <button key={a} className={`chip ${aspect === a ? 'on' : ''}`} aria-pressed={aspect === a} onClick={() => setAspect(a)}>

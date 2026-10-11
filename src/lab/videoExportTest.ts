@@ -26,7 +26,7 @@ import { renderDocument } from '../core/render/renderer';
 import { createCanvas, get2d } from '../core/util/canvas';
 
 /** 'film' は、フィルムの形そのまま（余白・背景なし）の動画 */
-export type Aspect = 'film' | '9:16' | '1:1' | '4:5';
+export type Aspect = 'film' | '9:16' | '1:1' | '4:5' | '16:9';
 export type Mode = 'A' | 'B';
 export type Background = 'gradient' | 'blur';
 
@@ -34,7 +34,35 @@ export const ASPECT_SIZES: Record<Exclude<Aspect, 'film'>, { w: number; h: numbe
   '9:16': { w: 1080, h: 1920 },
   '1:1': { w: 1080, h: 1080 },
   '4:5': { w: 1080, h: 1350 },
+  '16:9': { w: 1920, h: 1080 },
 };
+
+/**
+ * 元の動画に合わせた最初の設定。
+ * フレームの形は動画の向きで決め、入り込む方の動画の形は元の動画にいちばん近い比率にする。
+ */
+export function autoSettings(info: { width: number; height: number; rotation: number }): {
+  shapeId: FrameShapeId;
+  aspectB: Exclude<Aspect, 'film'>;
+} {
+  const rotated = info.rotation % 180 !== 0;
+  const w = rotated ? info.height : info.width;
+  const h = rotated ? info.width : info.height;
+  const r = w > 0 && h > 0 ? w / h : 9 / 16;
+  const shapeId: FrameShapeId = r > 1.2 ? 'wide' : r < 0.83 ? 'mini' : 'square';
+  const candidates: Exclude<Aspect, 'film'>[] = ['9:16', '4:5', '1:1', '16:9'];
+  let aspectB = candidates[0];
+  let best = Infinity;
+  for (const c of candidates) {
+    const { w: cw, h: ch } = ASPECT_SIZES[c];
+    const d = Math.abs(Math.log(cw / ch / r));
+    if (d < best) {
+      best = d;
+      aspectB = c;
+    }
+  }
+  return { shapeId, aspectB };
+}
 
 /** 書き出す動画の大きさ（H.264 のため偶数にそろえる） */
 export function outputSize(aspect: Aspect, shapeId: FrameShapeId): { w: number; h: number } {
