@@ -6,18 +6,26 @@ import { createTextLayer, removeLayer, updateLayer } from '../../core/model/doc'
 import type { PhotoDoc, TextLayer } from '../../core/model/types';
 import type { LoadedPhoto } from '../../core/render/photoSource';
 import { Icon, type IconName } from '../components/Icon';
+import { DatePanel } from './panels/DatePanel';
+import { EffectsPanel } from './panels/EffectsPanel';
+import { FilterPanel } from './panels/FilterPanel';
 import { FramePanel } from './panels/FramePanel';
+import { StampPanel } from './panels/StampPanel';
 import { PhotoPanel } from './panels/PhotoPanel';
 import { TextPanel } from './panels/TextPanel';
 import { Stage, type ApplyFn } from './Stage';
 import { TextEditor, type TextDraft } from './TextEditor';
 
-type ToolId = 'frame' | 'photo' | 'text';
+type ToolId = 'frame' | 'photo' | 'text' | 'filter' | 'effects' | 'date' | 'stamp';
 
 const TOOLS: { id: ToolId; label: string; icon: IconName }[] = [
   { id: 'frame', label: 'フレーム', icon: 'frame' },
   { id: 'photo', label: '写真', icon: 'move' },
   { id: 'text', label: '文字', icon: 'text' },
+  { id: 'filter', label: 'フィルター', icon: 'filter' },
+  { id: 'effects', label: '効果', icon: 'sparkle' },
+  { id: 'date', label: '日付', icon: 'calendar' },
+  { id: 'stamp', label: 'スタンプ', icon: 'sticker' },
 ];
 
 interface Props {
@@ -67,7 +75,7 @@ export function EditorScreen(props: Props) {
   const select = (id: string | null) => {
     setSelectedId(id);
     const layer = doc.layers.find((l) => l.id === id);
-    if (layer?.kind === 'text') setTool('text');
+    if (layer) setTool(layer.kind === 'text' ? 'text' : 'stamp');
   };
 
   // ---- 文字の入力 ----
@@ -134,6 +142,17 @@ export function EditorScreen(props: Props) {
         <div className="panel-area">
           {tool === 'frame' && <FramePanel doc={doc} apply={apply} />}
           {tool === 'photo' && <PhotoPanel doc={doc} apply={apply} onChangePhoto={onChangePhoto} />}
+          {tool === 'filter' && <FilterPanel doc={doc} apply={apply} photo={photo} />}
+          {tool === 'effects' && <EffectsPanel doc={doc} apply={apply} />}
+          {tool === 'date' && <DatePanel doc={doc} apply={apply} />}
+          {tool === 'stamp' && (
+            <StampPanel
+              doc={doc}
+              apply={apply}
+              selected={selectedLayer?.kind === 'stamp' ? selectedLayer : null}
+              onSelect={setSelectedId}
+            />
+          )}
           {tool === 'text' && (
             <TextPanel
               doc={doc}
@@ -153,7 +172,8 @@ export function EditorScreen(props: Props) {
               aria-pressed={tool === t.id}
               onClick={() => {
                 setTool(t.id);
-                if (selectedLayer && t.id !== 'text') setSelectedId(null);
+                const keep = selectedLayer && (selectedLayer.kind === 'text' ? t.id === 'text' : t.id === 'stamp');
+                if (selectedLayer && !keep) setSelectedId(null);
               }}
             >
               <Icon name={t.icon} />

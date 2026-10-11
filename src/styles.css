@@ -892,3 +892,12 @@ input:focus-visible {
   line-height: 1.5;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
+
+.color-mini {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
