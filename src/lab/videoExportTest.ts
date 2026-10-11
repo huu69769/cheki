@@ -85,6 +85,8 @@ export interface ExportTestOptions {
   background: Background;
   /** 入り込む前に写真として見せる1コマの時刻（秒） */
   thumbTime: number;
+  /** モードBで、入り込む前にサムネを止めて見せる長さ（秒） */
+  stillSeconds: number;
   maxSeconds: number;
   /** 1コマずつ CPU でフィルターをかける（重さの確認用） */
   cpuFilter: boolean;
@@ -104,11 +106,8 @@ export interface ExportTestResult {
   videoCodec: string;
 }
 
-const INTRO_STILL = 0.6;
+/** モードBで、サムネから中へ入り込むのにかける時間（秒） */
 const INTRO_ZOOM = 1.2;
-const INTRO_TOTAL = INTRO_STILL + INTRO_ZOOM;
-/** 入り込まない方（モードA）で、再生前にサムネを止めて見せる長さ（秒） */
-const STILL_A = 1.0;
 
 function easeInOut(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -157,7 +156,9 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
     const aTrack = await input.getPrimaryAudioTrack();
     const srcDuration = await input.computeDuration();
     const mainDuration = Math.min(srcDuration, opts.maxSeconds);
-    const offset = opts.mode === 'B' ? INTRO_TOTAL : STILL_A;
+    // モードBだけ、本編の前に「サムネを止めて見せる時間＋入り込む時間」がある
+    const introStill = opts.stillSeconds;
+    const offset = opts.mode === 'B' ? introStill + INTRO_ZOOM : 0;
     const total = mainDuration + offset;
 
     const canvas = createCanvas(W, H);
@@ -262,11 +263,10 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
       renderDocument(ctx, doc, { image: img, width: iw, height: ih }, { pxPerMm, origin, cacheFrame });
     };
 
-    // ---- 再生前：サムネ（選んだ1コマ）を見せる ----
-    // モードA：フレームの中でサムネを止めて見せる / モードB：サムネのフレームの中へ入り込む
-    {
+    // ---- モードB：サムネ（選んだ1コマ）を止めて見せる → フレームの中へ入り込む ----
+    if (opts.mode === 'B') {
       opts.onProgress({ done: 0, total: totalFrames, stage: 'サムネ' });
-      const size = winPx(opts.mode === 'B' ? zoomPx : fitPx);
+      const size = winPx(zoomPx);
       const stillSink = new CanvasSink(vTrack, { width: size.w, height: size.h, fit: 'cover' });
       const still = await stillSink.getCanvas(Math.min(opts.thumbTime, Math.max(0, srcDuration - 0.05)));
       if (!still) throw new Error('1コマ目を取り出せませんでした');
@@ -276,14 +276,7 @@ export async function runExportTest(file: Blob, opts: ExportTestOptions): Promis
       for (let i = 0; i < introFrames; i++) {
         check();
         const t = i / opts.fps;
-        if (opts.mode === 'A') {
-          drawFramed(stillCanvas, stillCanvas.width, stillCanvas.height, fitPx, fitOrigin, true);
-          await videoSource.add(t, frameDur);
-          frames++;
-          opts.onProgress({ done: frames, total: totalFrames, stage: 'サムネ' });
-          continue;
-        }
-        const z = t < INTRO_STILL ? 0 : easeInOut((t - INTRO_STILL) / INTRO_ZOOM);
+        const z = t < introStill ? 0 : easeInOut(Math.min(1, (t - introStill) / INTRO_ZOOM));
         // 拡大率は対数で補間すると、等速で近づいていくように見える
         const k = fitPx * Math.pow(zoomPx / fitPx, z);
         const origin = {

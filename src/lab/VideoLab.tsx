@@ -75,7 +75,9 @@ export function VideoLab() {
   const [background, setBackground] = useState<Background>('blur');
   const [cpuFilter, setCpuFilter] = useState(false);
   const [short, setShort] = useState(false);
-  const [thumbTime, setThumbTime] = useState(0.5);
+  // サムネは最初は「動画の最初の場面」。こだわりたいときだけ選び直す
+  const [thumbTime, setThumbTime] = useState(0);
+  const [stillSeconds, setStillSeconds] = useState(1.5);
   const [sns, setSns] = useState<(ExportTestResult & { label: string }) | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; stage: string; startedAt: number } | null>(null);
   const [results, setResults] = useState<(ExportTestResult & { label: string; id: number })[]>([]);
@@ -94,7 +96,7 @@ export function VideoLab() {
       setFile(f);
       setInfo(null);
       setResults([]);
-      setThumbTime(0.5);
+      setThumbTime(0);
       setError(null);
       try {
         setInfo(await probeVideo(f.blob));
@@ -112,7 +114,7 @@ export function VideoLab() {
     setProgress({ done: 0, total: 1, stage: '準備', startedAt });
     const shapeLabel = shapeId === 'mini' ? 'ミニ' : shapeId === 'square' ? 'スクエア' : 'ワイド';
     const label = [
-      mode === 'A' ? 'A：フレームの中で再生' : 'B：写真から入り込む',
+      mode === 'A' ? 'A：フレームの中で再生' : `B：写真から入り込む（サムネ${stillSeconds}秒）`,
       aspect === 'film' ? 'フィルムの形そのまま' : aspect,
       shapeLabel,
       aspect === 'film' ? null : background === 'blur' ? '背景ぼかし' : '背景パステル',
@@ -128,6 +130,7 @@ export function VideoLab() {
         shapeId,
         background,
         thumbTime,
+        stillSeconds,
         cpuFilter,
         fps: 30,
         maxSeconds: short ? 5 : MAX_VIDEO_SECONDS,
@@ -243,12 +246,23 @@ export function VideoLab() {
               B：写真から入り込む
             </button>
           </div>
-          {file && (
+          {mode === 'B' && file && (
             <>
-              <p className="section-label">
-                サムネ（{mode === 'B' ? '入り込む前に写真として見える場面' : '再生前に1秒止めて見せる場面'}）
-              </p>
+              <p className="section-label">サムネ（入り込む前に写真として見える場面。最初は動画の最初の場面）</p>
               <ThumbPicker file={file.blob} shapeId={shapeId} value={thumbTime} onChange={setThumbTime} />
+              <p className="section-label">サムネを止めて見せる時間（このあと約1.2秒かけて入り込みます）</p>
+              <div className="chips">
+                {[1, 1.5, 2, 3].map((sec) => (
+                  <button
+                    key={sec}
+                    className={`chip ${stillSeconds === sec ? 'on' : ''}`}
+                    aria-pressed={stillSeconds === sec}
+                    onClick={() => setStillSeconds(sec)}
+                  >
+                    {sec}秒
+                  </button>
+                ))}
+              </div>
             </>
           )}
           <p className="section-label">動画の形</p>
